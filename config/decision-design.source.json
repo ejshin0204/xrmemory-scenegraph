@@ -1,0 +1,527 @@
+{
+  "schema_version": "2.0",
+  "graph": {
+    "node": {
+      "type": "DecisionPoint",
+      "count": 5,
+      "fields": [
+        "id",
+        "label",
+        "required_state",
+        "target_state",
+        "latest_event_id"
+      ]
+    },
+    "edges": [
+      {
+        "type": "NEXT",
+        "meaning": "작업 절차의 다음 DP",
+        "fields": [
+          "id",
+          "source",
+          "target"
+        ]
+      },
+      {
+        "type": "UPDATE",
+        "meaning": "관측에 따른 DP 갱신",
+        "fields": [
+          "id",
+          "source",
+          "target",
+          "records"
+        ]
+      }
+    ],
+    "record_fields": [
+      "id",
+      "time_s",
+      "previous_event_id",
+      "task_state",
+      "observation",
+      "inference"
+    ],
+    "inference_fields": [
+      "expert_severity",
+      "user_state",
+      "status",
+      "primary_rule",
+      "matched_rules",
+      "belief"
+    ],
+    "belief_fields": {
+      "severity_candidates": {
+        "type": "array",
+        "items": [
+          "UNKNOWN",
+          "LOW",
+          "MID",
+          "HIGH"
+        ],
+        "meaning": "사용자가 판단했을 위험도의 후보. UNKNOWN은 판단 내용을 알 수 없다는 표시"
+      },
+      "source": {
+        "type": "string",
+        "values": {
+          "SELF_REPORT": "사용자의 직접 보고",
+          "BEHAVIORAL_HYPOTHESES": "관측 행동을 설명하는 가설",
+          "WEAK_BEHAVIORAL_EVIDENCE": "관찰 행동에 근거한 미확정 후보",
+          "INSUFFICIENT_EVIDENCE": "판단 근거 부족"
+        }
+      },
+      "hypotheses": {
+        "type": "array",
+        "meaning": "관측된 행동을 설명할 수 있는 미확인 판단",
+        "item_fields": {
+          "id": "가설 식별자",
+          "statement": "가설의 내용"
+        }
+      }
+    },
+    "update_policy": "동일 source·target의 UPDATE 에지는 재사용하고 records에 추가한다. 같은 DP 내 갱신은 self-loop로 표현한다.",
+    "initial_state": "기록이 없으면 사용자 상태와 Belief는 UNKNOWN이다."
+  },
+  "config": {
+    "decision_points": [
+      {
+        "id": "DP1",
+        "label": "시스템 활성화",
+        "required_state": "S0",
+        "target_state": "S1"
+      },
+      {
+        "id": "DP2",
+        "label": "조건 로드",
+        "required_state": "S1",
+        "target_state": "S2"
+      },
+      {
+        "id": "DP3",
+        "label": "예열 개시",
+        "required_state": "S2",
+        "target_state": "S3"
+      },
+      {
+        "id": "DP4",
+        "label": "절단 개시",
+        "required_state": "S3",
+        "target_state": "S4"
+      },
+      {
+        "id": "DP5",
+        "label": "절단 중 이상 감지 및 대응 판단",
+        "required_state": "S4",
+        "target_state": "S4"
+      }
+    ],
+    "task_states": [
+      {
+        "id": "S0",
+        "label": "시스템 비활성"
+      },
+      {
+        "id": "S1",
+        "label": "시스템 활성"
+      },
+      {
+        "id": "S2",
+        "label": "조건 로드 완료"
+      },
+      {
+        "id": "S3",
+        "label": "예열 단계"
+      },
+      {
+        "id": "S4",
+        "label": "절단 단계"
+      }
+    ],
+    "rules": [
+      {
+        "id": "R1",
+        "priority": 60,
+        "condition": "정상 버튼 선택 AND 상태 전이 성공",
+        "result": "Normal Execution"
+      },
+      {
+        "id": "R2",
+        "priority": 40,
+        "condition": "관련 단서 응시 AND 정답 대상에 손 접근",
+        "result": "Active Reasoning"
+      },
+      {
+        "id": "R3",
+        "priority": 70,
+        "condition": "버튼 간 시선·손 왕복 ≥ 3 AND 손이 여러 조작부 사이에 위치",
+        "result": "Hesitation"
+      },
+      {
+        "id": "R4",
+        "priority": 80,
+        "condition": "관련 대상 탐색 실패 AND 진전 없음 ≥ 10초",
+        "result": "Stuck"
+      },
+      {
+        "id": "R5",
+        "priority": 100,
+        "condition": "DP5 AND 전문가 기준 HIGH AND PAUSE/STOP/EMERGENCY_STOP 미수행",
+        "result": "Underreaction"
+      },
+      {
+        "id": "R6",
+        "priority": 90,
+        "condition": "DP5 AND 전문가 기준 LOW AND EMERGENCY_STOP",
+        "result": "Overreaction"
+      },
+      {
+        "id": "R7",
+        "priority": 50,
+        "condition": "DP5 AND 이상음 누적 ≥ 2 AND 기준 MID AND 관련 단서 응시 AND CONTINUE/OBSERVE",
+        "result": "Monitoring"
+      },
+      {
+        "id": "R8",
+        "priority": 95,
+        "condition": "DP5 AND 전문가 기준 HIGH AND PAUSE/STOP/EMERGENCY_STOP",
+        "result": "Normal Execution"
+      }
+    ],
+    "thresholds": {
+      "repeated_sound_events": 2,
+      "hesitation_alternations": 3,
+      "stuck_seconds": 10
+    }
+  },
+  "example_belief": {
+    "severity_candidates": [
+      "UNKNOWN",
+      "LOW",
+      "MID",
+      "HIGH"
+    ],
+    "source": "BEHAVIORAL_HYPOTHESES",
+    "hypotheses": [
+      {
+        "id": "H_UNDERESTIMATE",
+        "statement": "LOW 또는 MID로 위험을 과소평가했을 가능성"
+      },
+      {
+        "id": "H_NO_RESPONSE",
+        "statement": "HIGH 위험을 인지했으나 안전 대응을 수행하지 않았을 가능성"
+      }
+    ]
+  },
+  "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Synthetic User State Graph Trajectory",
+    "type": "object",
+    "required": [
+      "schema_version",
+      "id",
+      "events"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": "1.0"
+      },
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": {
+        "type": "string"
+      },
+      "synthetic": {
+        "type": "boolean"
+      },
+      "events": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 500,
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "time_s",
+            "dp_id",
+            "task_state",
+            "description",
+            "evidence",
+            "evidence_refs"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "time_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "dp_id": {
+              "enum": [
+                "DP1",
+                "DP2",
+                "DP3",
+                "DP4",
+                "DP5"
+              ]
+            },
+            "task_state": {
+              "enum": [
+                "S0",
+                "S1",
+                "S2",
+                "S3",
+                "S4"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "evidence": {
+              "type": "object",
+              "required": [
+                "flame_change",
+                "cut_quality",
+                "gaze",
+                "hand",
+                "button",
+                "search_progress",
+                "action",
+                "reported_severity",
+                "sound_events",
+                "alternations",
+                "no_progress_s",
+                "transition_success"
+              ],
+              "properties": {
+                "flame_change": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "SUBTLE",
+                    "DEGRADED",
+                    "UNKNOWN"
+                  ]
+                },
+                "cut_quality": {
+                  "type": "string",
+                  "enum": [
+                    "NORMAL",
+                    "SLIGHTLY_DEGRADED",
+                    "DEGRADED",
+                    "UNKNOWN"
+                  ]
+                },
+                "gaze": {
+                  "type": "string",
+                  "enum": [
+                    "RELATED_CUES",
+                    "OTHER",
+                    "UNKNOWN"
+                  ]
+                },
+                "hand": {
+                  "type": "string",
+                  "enum": [
+                    "TARGET_APPROACH",
+                    "BETWEEN_CONTROLS",
+                    "IDLE",
+                    "UNKNOWN"
+                  ]
+                },
+                "button": {
+                  "type": "string",
+                  "enum": [
+                    "NONE",
+                    "CORRECT",
+                    "INCORRECT",
+                    "EMERGENCY_STOP"
+                  ]
+                },
+                "search_progress": {
+                  "type": "string",
+                  "enum": [
+                    "FOUND",
+                    "SEARCHING",
+                    "FAILED",
+                    "UNKNOWN"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "CONTINUE",
+                    "OBSERVE",
+                    "PAUSE",
+                    "STOP",
+                    "EMERGENCY_STOP"
+                  ]
+                },
+                "reported_severity": {
+                  "type": "string",
+                  "enum": [
+                    "UNKNOWN",
+                    "LOW",
+                    "MID",
+                    "HIGH"
+                  ]
+                },
+                "sound_events": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "같은 DP 구간 내 누적 관측 횟수; 결측은 null"
+                },
+                "alternations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "no_progress_s": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "transition_success": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "x-runtime-invariants": [
+      "event id는 유일",
+      "time_s 엄격 증가",
+      "같은 DP 구간의 sound_events는 감소 불가",
+      "schema_version은 1.0",
+      "task_state는 DP의 요구 또는 목표 상태이며 성공 전이는 목표 상태여야 함"
+    ]
+  },
+  "example_input": {
+    "schema_version": "1.0",
+    "id": "dp5-underreaction",
+    "title": "DP5 · 이상 악화 후 절단 유지",
+    "synthetic": true,
+    "events": [
+      {
+        "id": "t0",
+        "time_s": 0,
+        "dp_id": "DP5",
+        "task_state": "S4",
+        "description": "이상음 1회와 미세한 불꽃 변화. 관련 단서를 살펴보며 절단을 유지함.",
+        "evidence": {
+          "sound_events": 1,
+          "flame_change": "SUBTLE",
+          "cut_quality": "NORMAL",
+          "gaze": "RELATED_CUES",
+          "hand": "TARGET_APPROACH",
+          "button": "NONE",
+          "search_progress": "FOUND",
+          "alternations": 0,
+          "no_progress_s": 0,
+          "action": "CONTINUE",
+          "transition_success": false,
+          "reported_severity": "UNKNOWN"
+        },
+        "evidence_refs": [
+          "synthetic://t0/sensor",
+          "synthetic://t0/gaze-hand",
+          "synthetic://t0/action"
+        ]
+      },
+      {
+        "id": "t1",
+        "time_s": 8,
+        "dp_id": "DP5",
+        "task_state": "S4",
+        "description": "약한 이상음이 재발. 관련 단서를 계속 확인하며 관찰함.",
+        "evidence": {
+          "sound_events": 2,
+          "flame_change": "SUBTLE",
+          "cut_quality": "NORMAL",
+          "gaze": "RELATED_CUES",
+          "hand": "TARGET_APPROACH",
+          "button": "NONE",
+          "search_progress": "FOUND",
+          "alternations": 0,
+          "no_progress_s": 0,
+          "action": "CONTINUE",
+          "transition_success": false,
+          "reported_severity": "UNKNOWN"
+        },
+        "evidence_refs": [
+          "synthetic://t1/sensor",
+          "synthetic://t1/gaze-hand",
+          "synthetic://t1/action"
+        ]
+      },
+      {
+        "id": "t2",
+        "time_s": 20,
+        "dp_id": "DP5",
+        "task_state": "S4",
+        "description": "이상음 재발 지속, 불꽃과 절단 결과가 악화됨. 사용자는 절단을 계속함.",
+        "evidence": {
+          "sound_events": 4,
+          "flame_change": "DEGRADED",
+          "cut_quality": "DEGRADED",
+          "gaze": "RELATED_CUES",
+          "hand": "TARGET_APPROACH",
+          "button": "NONE",
+          "search_progress": "FOUND",
+          "alternations": 0,
+          "no_progress_s": 0,
+          "action": "CONTINUE",
+          "transition_success": false,
+          "reported_severity": "UNKNOWN"
+        },
+        "evidence_refs": [
+          "synthetic://t2/sensor",
+          "synthetic://t2/gaze-hand",
+          "synthetic://t2/action"
+        ]
+      }
+    ]
+  },
+  "expected_updates": [
+    {
+      "event": "t0",
+      "time_s": 0,
+      "observation": "이상음 1회, 불꽃 미세 변화, 관련 단서 확인",
+      "expert_severity": "MID",
+      "user_state": "Active Reasoning",
+      "belief": "UNKNOWN / MID",
+      "primary_rule": "R2"
+    },
+    {
+      "event": "t1",
+      "time_s": 8,
+      "observation": "약한 이상음 반복, 계속 관찰",
+      "expert_severity": "MID",
+      "user_state": "Monitoring",
+      "belief": "UNKNOWN / MID",
+      "primary_rule": "R7"
+    },
+    {
+      "event": "t2",
+      "time_s": 20,
+      "observation": "반복 이상음, 불꽃·절단 결과 악화, 절단 유지",
+      "expert_severity": "HIGH",
+      "user_state": "Underreaction 가능성",
+      "belief": "과소평가 또는 위험 인지 후 미대응",
+      "primary_rule": "R5"
+    }
+  ]
+}

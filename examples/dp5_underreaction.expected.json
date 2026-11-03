@@ -1,0 +1,29 @@
+[
+  {
+    "event": "t0",
+    "time_s": 0,
+    "observation": "이상음 1회, 불꽃 미세 변화, 관련 단서 확인",
+    "expert_severity": "MID",
+    "user_state": "Active Reasoning",
+    "belief": "UNKNOWN / MID",
+    "primary_rule": "R2"
+  },
+  {
+    "event": "t1",
+    "time_s": 8,
+    "observation": "약한 이상음 반복, 계속 관찰",
+    "expert_severity": "MID",
+    "user_state": "Monitoring",
+    "belief": "UNKNOWN / MID",
+    "primary_rule": "R7"
+  },
+  {
+    "event": "t2",
+    "time_s": 20,
+    "observation": "반복 이상음, 불꽃·절단 결과 악화, 절단 유지",
+    "expert_severity": "HIGH",
+    "user_state": "Underreaction 가능성",
+    "belief": "과소평가 또는 위험 인지 후 미대응",
+    "primary_rule": "R5"
+  }
+]

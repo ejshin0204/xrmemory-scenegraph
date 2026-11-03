@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "id": "dp5-underreaction",
+  "title": "DP5 · 이상 악화 후 절단 유지",
+  "synthetic": true,
+  "events": [
+    {
+      "id": "t0",
+      "time_s": 0,
+      "dp_id": "DP5",
+      "task_state": "S4",
+      "description": "이상음 1회와 미세한 불꽃 변화. 관련 단서를 살펴보며 절단을 유지함.",
+      "evidence": {
+        "sound_events": 1,
+        "flame_change": "SUBTLE",
+        "cut_quality": "NORMAL",
+        "gaze": "RELATED_CUES",
+        "hand": "TARGET_APPROACH",
+        "button": "NONE",
+        "search_progress": "FOUND",
+        "alternations": 0,
+        "no_progress_s": 0,
+        "action": "CONTINUE",
+        "transition_success": false,
+        "reported_severity": "UNKNOWN"
+      },
+      "evidence_refs": [
+        "synthetic://t0/sensor",
+        "synthetic://t0/gaze-hand",
+        "synthetic://t0/action"
+      ]
+    },
+    {
+      "id": "t1",
+      "time_s": 8,
+      "dp_id": "DP5",
+      "task_state": "S4",
+      "description": "약한 이상음이 재발. 관련 단서를 계속 확인하며 관찰함.",
+      "evidence": {
+        "sound_events": 2,
+        "flame_change": "SUBTLE",
+        "cut_quality": "NORMAL",
+        "gaze": "RELATED_CUES",
+        "hand": "TARGET_APPROACH",
+        "button": "NONE",
+        "search_progress": "FOUND",
+        "alternations": 0,
+        "no_progress_s": 0,
+        "action": "CONTINUE",
+        "transition_success": false,
+        "reported_severity": "UNKNOWN"
+      },
+      "evidence_refs": [
+        "synthetic://t1/sensor",
+        "synthetic://t1/gaze-hand",
+        "synthetic://t1/action"
+      ]
+    },
+    {
+      "id": "t2",
+      "time_s": 20,
+      "dp_id": "DP5",
+      "task_state": "S4",
+      "description": "이상음 재발 지속, 불꽃과 절단 결과가 악화됨. 사용자는 절단을 계속함.",
+      "evidence": {
+        "sound_events": 4,
+        "flame_change": "DEGRADED",
+        "cut_quality": "DEGRADED",
+        "gaze": "RELATED_CUES",
+        "hand": "TARGET_APPROACH",
+        "button": "NONE",
+        "search_progress": "FOUND",
+        "alternations": 0,
+        "no_progress_s": 0,
+        "action": "CONTINUE",
+        "transition_success": false,
+        "reported_severity": "UNKNOWN"
+      },
+      "evidence_refs": [
+        "synthetic://t2/sensor",
+        "synthetic://t2/gaze-hand",
+        "synthetic://t2/action"
+      ]
+    }
+  ]
+}
