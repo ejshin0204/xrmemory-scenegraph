@@ -1,6 +1,6 @@
 # Query → Output 예시
 
-자연어 쿼리 엔진은 포함하지 않습니다. 아래는 저장된 필드로 답할 수 있는 질문과 예상 답변입니다.
+통합 JSON을 기준으로 작성한 질문·답변 예시.
 
 | 질문 | 예상 답변 | 근거 |
 |---|---|---|
@@ -23,4 +23,4 @@
 | 규칙상 Normal Execution인가? | 현재 정보로 판정하지 않음 | user_state=UNKNOWN |
 | decision 최신 기록은? | decision_record_04, 12.43초 | DP5.latest_event_id |
 
-30ms의 시간적 선후만으로 인과를 증명하지 않습니다. HTML 합성 사례의 Underreaction을 PDF 차단 사례의 답변으로 사용하지 않습니다.
+30ms는 두 기록의 시간 차이며 인과관계 판정값은 아니다.
