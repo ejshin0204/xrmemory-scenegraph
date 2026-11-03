@@ -1,8 +1,6 @@
 # XRMemory Scene Graph
 
-제어판의 공간 구성과 작업자의 관찰·판단·조작 기록을 연결하는 데이터 구조.
-
-현재 버전: **v0.1.0** · 촬영 전 설계안
+제어판의 공간 구성과 작업자의 관찰·판단·조작 기록을 연결하는 데이터 구조
 
 ## 구성
 
@@ -35,15 +33,3 @@
 | [dp5_underreaction.synthetic.json](examples/dp5_underreaction.synthetic.json) | 이상이 악화돼도 절단을 유지하는 합성 입력 |
 | [dp5_underreaction.expected.json](examples/dp5_underreaction.expected.json) | 합성 입력의 예상 출력 |
 | [decision-design.source.json](config/decision-design.source.json) | Decision 구조·규칙 원문 |
-
-시간·좌표·판단 기록은 설명용 예시다. 쿼리 및 상태 추론 기능은 아직 구현하지 않았다.
-
-## 검증
-
-Python 3.10 이상. 외부 패키지 설치 없이 저장소 루트에서 실행한다.
-
-```bash
-python tools/validate.py
-```
-
-JSON 문법, ID 참조, 시간 순서, Decision 연결을 검사한다.
