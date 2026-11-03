@@ -13,17 +13,6 @@
 | `decision_graph` | 판단 지점(DP1~DP5)과 갱신 기록 |
 | `metadata` | 버전, 시간 기준, 좌표계 |
 
-## 문서
-
-- [공간 구조](docs/design.md)
-- [Decision Graph](docs/decision.md)
-- [시나리오](docs/scenario.md)
-- [쿼리 예시](docs/queries.md)
-- [촬영 가이드](docs/capture-guide.md)
-- [논의 사항](docs/open-questions.md)
-- [참고 자료](docs/sources.md)
-- [업로드 방법](docs/github-upload.md)
-
 ## 데이터 예시
 
 | 파일 | 내용 |
