@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XRMemory 씬그래프 뷰어</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: three columns read left to right — raw file → rule → scene-graph field. Then one worked example, then the result strip. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #17212c;
+  --muted: #5d6a78;
+  --faint: #8d99a6;
+  --line: #d9dfe6;
+  --soft: #eaeef3;
+  --lcd: #2a5bd7;
+  --obs: #11806f; --obs-bg: #dcf2ee;
+  --hyp: #a86f06; --hyp-bg: #fbf0d9;
+  --none: #b5482f; --none-bg: #f9e3dd;
+  --press: #c98a12;
+  --say: #5a49c4; --say-bg: #ebe8fb;
+  --k-obs: #11806f; --k-judg: #6b7785; --k-int: #c98a12; --k-plan: #5a49c4;
+  --s0: #d3ddf3; --s1: #a9c0f0; --s2: #7b9de6; --s3: #4f78d9; --s4: #2b50b2;
+  --on-light: #10203f; --on-dark: #ffffff;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151b; --surface: #18202a; --ink: #e6ecf2; --muted: #9eabb8; --faint: #6f7d8b; --line: #2b3643; --soft: #212b36;
+    --lcd: #7299ff; --obs: #45c7b4; --obs-bg: #163632; --hyp: #eab354; --hyp-bg: #3a2f17; --none: #f08a70; --none-bg: #3d221c; --press: #eab354; --say: #a99cf5; --say-bg: #26223f; --k-obs: #45c7b4; --k-judg: #8c99a7; --k-int: #eab354; --k-plan: #a99cf5;
+    --s0: #2a3956; --s1: #324d86; --s2: #3e64b4; --s3: #5a86e3; --s4: #8eb0ff;
+    --on-light: #e8eeff; --on-dark: #0b1530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151b; --surface: #18202a; --ink: #e6ecf2; --muted: #9eabb8; --faint: #6f7d8b; --line: #2b3643; --soft: #212b36;
+  --lcd: #7299ff; --obs: #45c7b4; --obs-bg: #163632; --hyp: #eab354; --hyp-bg: #3a2f17; --none: #f08a70; --none-bg: #3d221c; --press: #eab354; --say: #a99cf5; --say-bg: #26223f; --k-obs: #45c7b4; --k-judg: #8c99a7; --k-int: #eab354; --k-plan: #a99cf5;
+  --s0: #2a3956; --s1: #324d86; --s2: #3e64b4; --s3: #5a86e3; --s4: #8eb0ff;
+  --on-light: #e8eeff; --on-dark: #0b1530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+img { max-width: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 72px;
+}
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 52px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.3; }
+h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+h2 .n { font: 600 0.85rem var(--font-mono); width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--surface); flex: none; }
+p { margin: 0; max-width: 68ch; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.note { font-size: 0.86rem; color: var(--muted); }
+section { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 500 0.74rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header { display: grid; gap: 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+
+.badge { display: inline-flex; align-items: center; font: 600 0.72rem var(--font-body); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.badge.obs { background: var(--obs-bg); color: var(--obs); }
+.badge.hyp { background: var(--hyp-bg); color: var(--hyp); }
+.badge.none { background: var(--none-bg); color: var(--none); }
+.badge.say { background: var(--say-bg); color: var(--say); }
+.cell.out.say { border-color: var(--say); }
+blockquote.quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--say); background: var(--say-bg); border-radius: 0 8px 8px 0; font-size: 0.88rem; }
+blockquote.quote .t { display: block; font: 0.74rem var(--font-mono); color: var(--muted); margin-bottom: 2px; }
+.speech { position: relative; height: 16px; margin-top: 8px; }
+.speech i { position: absolute; top: 0; height: 100%; border-radius: 3px; }
+.speech-label { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.76rem; color: var(--muted); margin-top: 6px; }
+.speech-label span { display: inline-flex; align-items: center; gap: 5px; }
+.speech-label b { display: inline-block; width: 12px; height: 10px; border-radius: 2px; }
+
+/* pipeline */
+.pipe { display: grid; gap: 10px; }
+.pipe-head, .prow { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1.35fr) 28px minmax(0, 1fr); align-items: stretch; }
+.pipe-head { font: 600 0.74rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pipe-head span:nth-child(2n) { visibility: hidden; }
+.cell { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; align-content: center; min-width: 0; }
+.cell .file { font: 600 0.84rem var(--font-mono); overflow-wrap: anywhere; }
+.cell .what { font-size: 0.82rem; color: var(--muted); }
+.cell.rule { background: transparent; border-style: dashed; }
+.cell.rule b { font-weight: 600; font-size: 0.9rem; }
+.cell.rule code { font: 0.8rem var(--font-mono); background: var(--soft); padding: 0 5px; border-radius: 4px; }
+.cell.out { border-width: 1.5px; }
+.cell.out.obs { border-color: var(--obs); }
+.cell.out.hyp { border-color: var(--hyp); border-style: dashed; }
+.cell.out.none { border-color: var(--none); border-style: dashed; }
+.cell.out .field { font: 600 0.86rem var(--font-mono); overflow-wrap: anywhere; }
+.cell.out .cnt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); }
+.arrow { display: grid; place-items: center; color: var(--faint); font-size: 1.1rem; }
+.prow.missing .cell.src { border-style: dashed; color: var(--muted); }
+.group-label { font: 600 0.74rem var(--font-mono); letter-spacing: 0.06em; color: var(--faint); margin-top: 8px; }
+
+/* example */
+.ex-picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ex-picker button { font: 600 0.85rem var(--font-mono); min-width: 36px; height: 36px; padding: 0 10px; border-radius: 999px; border: 1.5px solid var(--press); background: var(--surface); color: var(--press); cursor: pointer; }
+.ex-picker button[aria-pressed="true"] { background: var(--press); color: var(--surface); }
+.ex-picker button span { font: 500 0.75rem var(--font-body); margin-left: 6px; }
+button:focus-visible { outline: 2px solid var(--lcd); outline-offset: 2px; }
+.steps { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1.2fr); gap: 14px; }
+.stp { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.stp h3 { font-size: 0.95rem; display: flex; gap: 8px; align-items: center; }
+.stp h3 i { font: 600 0.72rem var(--font-mono); font-style: normal; color: var(--muted); }
+.frames { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.frames figure { margin: 0; display: grid; gap: 3px; }
+.frames img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; display: block; background: var(--soft); }
+.frames figcaption { font-size: 0.75rem; color: var(--muted); }
+.frames figcaption b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
+dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 0.86rem; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; font-family: var(--font-mono); font-size: 0.82rem; min-width: 0; overflow-wrap: anywhere; }
+ol.rules { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; font-size: 0.88rem; }
+ol.rules li::marker { font-family: var(--font-mono); color: var(--muted); }
+.lcd { font: 600 0.78rem var(--font-mono); background: var(--lcd); color: var(--surface); padding: 1px 6px; border-radius: 4px; }
+.snip { display: grid; gap: 4px; }
+.snip .path { font: 600 0.76rem var(--font-mono); color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+pre { margin: 0; font: 0.74rem/1.5 var(--font-mono); background: var(--bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
+pre .k { color: var(--muted); }
+pre .hl { background: var(--hyp-bg); color: var(--hyp); border-radius: 3px; }
+
+/* result strip */
+.strip-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 16px 14px; }
+.strip { position: relative; height: 44px; display: flex; border-radius: 8px; overflow: hidden; }
+.seg { height: 100%; display: grid; place-items: center; font: 600 0.74rem var(--font-mono); overflow: hidden; white-space: nowrap; border-right: 2px solid var(--surface); }
+.marks { position: relative; height: 34px; margin-top: 6px; }
+.mk { position: absolute; top: 0; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--press); color: var(--surface); font: 700 0.75rem var(--font-mono); cursor: pointer; display: grid; place-items: center; }
+.mk::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 50px; background: var(--press); opacity: 0.6; }
+.mk[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 1px; }
+.dps { display: flex; margin-top: 2px; }
+.dps span { font: 600 0.72rem var(--font-mono); color: var(--muted); text-align: center; overflow: hidden; white-space: nowrap; }
+.axis { display: flex; justify-content: space-between; font: 0.72rem var(--font-mono); color: var(--faint); margin-top: 8px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.summary div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; }
+.summary b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.summary span { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+details.json summary { cursor: pointer; font-weight: 600; }
+details.json pre { max-height: 480px; overflow: auto; margin-top: 10px; }
+
+@media (max-width: 860px) {
+  .pipe-head { display: none; }
+  .prow { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .arrow { transform: rotate(90deg); height: 20px; }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow" id="eyebrow">XRMemory Scene Graph</div>
+    <h1 id="title">씬그래프</h1>
+    <p>Aria 원본 데이터의 어떤 파일이, 어떤 규칙을 거쳐, 씬그래프 JSON의 어느 필드가 되는지 보여 줍니다.</p>
+    <div class="legend">
+      <span><span class="badge obs">관측</span>데이터에서 직접 추출</span>
+      <span><span class="badge say">구술</span>작업자가 말한 내용(mic.wav)에서 추출</span>
+      <span><span class="badge hyp">추정</span>실험 정보가 없어 가정으로 채움</span>
+      <span><span class="badge none">없음</span>데이터에 없어 비워 둠</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="n">1</span>추출 파이프라인</h2>
+    <div class="pipe" id="pipe"></div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>한 건 따라가기</h2>
+    <p class="note">버튼 누름 하나가 원본 데이터에서 JSON 항목으로 바뀌는 과정입니다. 번호를 눌러 다른 누름을 볼 수 있습니다.</p>
+    <div class="ex-picker" id="picker"></div>
+    <div class="steps" id="steps"></div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>결과: <span id="resDur"></span> 트라이얼</h2>
+    <div class="strip-wrap">
+      <div class="strip" id="strip"></div>
+      <div class="marks" id="marks"></div>
+      <div class="dps" id="dps"></div>
+      <div class="speech" id="speech" aria-label="구술 발언 구간"></div>
+      <div class="speech-label"><span>구술:</span><span><b style="background:var(--k-obs)"></b>관찰</span><span><b style="background:var(--k-judg)"></b>판단</span><span><b style="background:var(--k-int)"></b>의도</span><span><b style="background:var(--k-plan)"></b>계획</span></div>
+      <div class="axis" id="axis"></div>
+    </div>
+    <div class="summary" id="summary"></div>
+    <details class="json"><summary>전체 JSON 보기 (<span id="jsonName"></span>)</summary><pre id="jsonDump"></pre></details>
+  </section>
+</main>
+
+<script>
+(async () => {
+const EX = new URLSearchParams(location.search).get("example") || "aria_261104_test0";
+const BASE = `../examples/${EX}/`;
+let G, VIEW;
+try {
+  [G, VIEW] = await Promise.all([fetch(BASE + "scenegraph.json"), fetch(BASE + "viewer.json")].map((p) => p.then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })));
+} catch (err) {
+  document.querySelector("main").innerHTML = `<p>예시 데이터를 불러오지 못했습니다 (${BASE}). 레포 루트에서 <code>python3 -m http.server</code>를 실행한 뒤 <code>http://localhost:8000/viewer/</code>로 여세요.</p>`;
+  return;
+}
+const IMG = Object.fromEntries(Object.keys(VIEW.frame_ms).map((f) => [f, `${BASE}frames/${String(f).padStart(5, "0")}.jpg`]));
+const FRAME_MS = VIEW.frame_ms;
+
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function fmt(ms, dec = 1) {
+  const s = ms / 1000, m = Math.floor(s / 60), r = s - m * 60;
+  return `${m}:${r.toFixed(dec).padStart(dec ? 3 + dec : 2, "0")}`;
+}
+const END = G.metadata.recording_end_ms;
+const OBJ = Object.fromEntries(G.objects.map((o) => [o.id, o]));
+const presses = G.events.filter((e) => e.type === "button_press").sort((a, b) => a.time_ms - b.time_ms);
+const looks = G.events.filter((e) => e.type === "look_at_machine");
+const ups = G.decision_graph.edges.filter((e) => e.type === "UPDATE");
+const records = ups.flatMap((u) => u.records.map((r) => ({ r, u })));
+const PRESS_FRAMES = VIEW.press_frames;
+const effect = (e) => e.observed_effect.split("→ ")[1];
+
+/* ---------- 1. pipeline ---------- */
+(function () {
+  const row = (src, rule, out, missing) => `
+    <div class="prow ${missing ? "missing" : ""}">
+      <div class="cell src">${src}</div><div class="arrow" aria-hidden="true">→</div>
+      <div class="cell rule">${rule}</div><div class="arrow" aria-hidden="true">→</div>
+      <div class="cell out ${out.k}"><div class="field">${out.f}</div><div class="cnt"><span class="badge ${out.k}">${{ obs: "관측", say: "구술", hyp: "추정", none: "없음" }[out.k]}</span>${out.c}</div></div>
+    </div>`;
+  const f = (name, what) => `<div class="file">${name}</div><div class="what">${what}</div>`;
+  const nStates = G.states.length, nRec = records.length;
+  const kindN = { judgment: 0, intention: 0, plan: 0 };
+  G.interpretations.forEach((x) => (kindN[x.kind] += 1));
+  $("#pipe").innerHTML = `
+    <div class="pipe-head"><span>원본 데이터</span><span></span><span>추출 규칙</span><span></span><span>씬그래프 필드</span></div>
+    ${row(f("camera-rgb.mp4", "머리 시점 영상, 10 fps"),
+      `<b>LCD 화면 글자 판독</b><span class="note">글자가 바뀌기 시작한 첫 프레임 = 새 상태의 <code>start_ms</code></span>`,
+      { k: "obs", f: "states[ ]<br>SCREEN_1.display_text", c: `${nStates}구간 · ±0.1초` })}
+    ${row(f("camera-rgb.mp4<br>+ handtracking.csv", "영상 + 손 랜드마크 30 Hz"),
+      `<b>화면이 바뀌기 직전, 손가락이 키에 닿은 프레임</b><span class="note">손바닥이 쉬는 위치에서 <code>12 cm</code> 넘게 움직인 구간을 접근 구간으로 기록</span>`,
+      { k: "obs", f: "events[ ]<br>type: button_press", c: `${presses.length}회 · 누른 키 위치 포함` })}
+    ${row(f("vio_high_frequency.csv", "머리 자세 800 Hz"),
+      `<b>머리 앙각 <code>&gt; −28°</code> 가 0.5초 이상</b><span class="note">패널을 볼 때 약 −42°, 영사된 절단기를 볼 때 −5~−20°</span>`,
+      { k: "obs", f: "events[ ]<br>type: look_at_machine", c: `${looks.length}회` })}
+    <div class="group-label">작업자 구술(think-aloud)에서 추출</div>
+    ${row(f("mic.wav", "8채널 오디오"),
+      `<b>증폭(+45 dB) → Whisper 받아쓰기 → 교정</b><span class="note">발언 시각 = 오디오 시각 ${G.metadata.audio_offset_ms} ms 보정. 화면·불꽃 등을 보고한 발언</span>`,
+      { k: "say", f: "observations[ ]", c: `${G.observations.length}개` })}
+    ${row(f("mic.wav", "같은 받아쓰기"),
+      `<b>발언을 판단 · 의도 · 계획으로 분류</b><span class="note">"…하므로 안 됩니다" = 판단, "…버튼을 누르겠습니다" = 의도, "…발생하면 차단합니다" = 계획</span>`,
+      { k: "say", f: "interpretations[ ]", c: `판단 ${kindN.judgment} · 의도 ${kindN.intention} · 계획 ${kindN.plan}` })}
+    ${row(f("의도 발언 + 버튼 누름", "\"점화 버튼을 누르겠습니다\" → 1.2초 뒤 누름"),
+      `<b>의도 발언 직후 10초 안의 누름에 버튼 이름 연결</b><span class="note">① F1 = 시스템 활성화, ② F2 = 조건 로드처럼 물리 키까지 말한 경우도 있음</span>`,
+      { k: "say", f: "events[ ].target_id<br>interpretations.selected_action_id", c: `${presses.length}회 모두 연결` })}
+    ${row(f("상태 확인 발언", "\"제어가 활성 상태로 바뀌었습니다\""),
+      `<b>구술한 상태 변화 → 작업 상태</b><span class="note">F1 = S1, 두 번째 F2 = S2, PRCTRL = S3, CUTTING = S4</span>`,
+      { k: "say", f: "states[ ].task_state", c: "S0~S4" })}
+    <div class="group-label">위 결과를 묶어서 생성</div>
+    ${row(f("states + events<br>+ 구술", "위 행들의 결과"),
+      `<b>시간순으로 나열해 UPDATE 기록 생성</b><span class="note">작업 상태가 바뀌면 다음 판단 지점(DP)으로 넘어감. 구술 버튼이 절차 버튼과 맞고 상태가 바뀌면 R1(정상 실행)</span>`,
+      { k: "obs", f: "decision_graph<br>UPDATE.records", c: `${nRec}건 · DP1~DP5` })}
+    <div class="group-label">데이터가 없어 비워 두거나 가정한 것</div>
+    ${row(f("mic.wav", "오류음 · 위험도 발언"),
+      `<b>오류음이 없고 위험도를 말한 발언도 없음</b><span class="note">자극 재생 로그도 없음</span>`,
+      { k: "none", f: "events: error_sound<br>severity · Belief · expert_severity", c: "0건 / UNKNOWN" }, true)}
+    ${row(f("레포 정의", "DP·버튼 목록"),
+      `<b>점화 버튼과 점화·천공 단계가 레포에 없음</b><span class="note">BTN_IGNITE를 추가하고 점화 후는 S2, 천공 중은 S3으로 둠</span>`,
+      { k: "hyp", f: "objects: BTN_IGNITE<br>task_state (점화·천공)", c: "가정 A1·A2" })}
+  `;
+})();
+
+/* ---------- 2. worked example ---------- */
+function jsonLines(obj, keys, hl = []) {
+  const pick = {}; keys.forEach((k) => { if (obj[k] !== undefined) pick[k] = obj[k]; });
+  return esc(JSON.stringify(pick, null, 2)).replace(/^(\s*)&quot;([^&]+)&quot;:/gm, (m, sp, k) => `${sp}<span class="${hl.includes(k) ? "hl" : "k"}">"${k}"</span>:`);
+}
+function showExample(i) {
+  const e = presses[i];
+  const [fb, fa] = PRESS_FRAMES[i];
+  const ei = G.events.indexOf(e);
+  const si = G.states.findIndex((s) => s.start_ms > e.time_ms);
+  const s = G.states[si];
+  const ii = G.interpretations.findIndex((x) => x.id === e.target_evidence);
+  const it = G.interpretations[ii];
+  const oi = G.observations.findIndex((o) => o.related_event_id === e.id);
+  const ob = G.observations[oi];
+  const refs = [`/events/${ei}`, `/states/${si}`, `/interpretations/${ii}`, `/observations/${oi}`];
+  const recs = records.filter(({ r }) => r.observation.evidence_refs.some((p) => refs.includes(p))).sort((a, b) => a.r.time_ms - b.r.time_ms);
+  $("#picker").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.i === i));
+  $("#marks").querySelectorAll(".mk").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.i === i));
+  const r1 = recs.find(({ r }) => r.inference.primary_rule === "R1");
+  const tgt = `${OBJ[e.target_id].name}${e.physical_key ? ` (${e.physical_key})` : ""} <span class="badge say">구술</span>`;
+  const q = (x, label) => x ? `<blockquote class="quote"><span class="t">${label} · ${fmt(x.start_ms)}–${fmt(x.end_ms)}</span>"${esc(x.text)}"</blockquote>` : "";
+  $("#steps").innerHTML = `
+    <div class="stp">
+      <h3><i>STEP 1</i>원본 데이터</h3>
+      ${q(it, "mic.wav · 누르기 전 발언")}
+      <div class="frames">
+        <figure><img src="${IMG[fb]}" alt="누르기 직전 프레임 ${fb}"><figcaption><b>frame ${fb}</b> · ${fmt(FRAME_MS[fb])}<br>손가락이 키에 닿음</figcaption></figure>
+        <figure><img src="${IMG[fa]}" alt="화면 갱신 직후 프레임 ${fa}"><figcaption><b>frame ${fa}</b> · ${fmt(FRAME_MS[fa])}<br>화면 <span class="lcd">${esc(effect(e))}</span></figcaption></figure>
+      </div>
+      <dl class="kv">
+        <dt>camera-rgb</dt><dd>frame ${fb} → ${fb + 1}에서 화면 갱신 시작</dd>
+        <dt>handtracking</dt><dd>${e.approach ? `손 뻗음 ${fmt(e.approach.start_ms)}–${fmt(e.approach.end_ms)}` : "—"}</dd>
+      </dl>
+      ${q(ob, "mic.wav · 누른 뒤 발언")}
+    </div>
+    <div class="stp">
+      <h3><i>STEP 2</i>규칙 적용</h3>
+      <ol class="rules">
+        <li>화면이 바뀐 첫 프레임 → <b>상태 시작</b> ${fmt(s.start_ms)}</li>
+        <li>그 직전 프레임 → <b>누른 시각</b> ${fmt(e.time_ms)}</li>
+        <li>손가락 위치 → <b>${esc(OBJ[e.key_group].name)}</b> <span class="badge obs">관측</span></li>
+        <li>직전 의도 발언 → <b>누른 버튼</b>: ${tgt}</li>
+        <li>누른 뒤 상태 발언 → <b>작업 상태 ${s.task_state}</b> (${esc(s.reported_phase)}) <span class="badge say">구술</span></li>
+        <li>${r1 ? `구술한 버튼이 ${r1.u.target} 절차 버튼과 일치하고 상태가 바뀜 → <b>R1 정상 실행</b>` : `R1 판정 보류`}</li>
+      </ol>
+    </div>
+    <div class="stp">
+      <h3><i>STEP 3</i>생성된 JSON</h3>
+      <div class="snip"><div class="path"><span>/interpretations/${ii}</span><span>${it.id}</span></div><pre>${jsonLines(it, ["kind", "time_ms", "stated_button_id", "selected_action_id"], ["stated_button_id", "selected_action_id"])}</pre></div>
+      <div class="snip"><div class="path"><span>/events/${ei}</span><span>${e.id}</span></div><pre>${jsonLines(e, ["type", "time_ms", "target_id", "target_evidence", "key_group", "observed_effect"], ["target_id", "target_evidence"])}</pre></div>
+      <div class="snip"><div class="path"><span>/states/${si}</span><span>SCREEN_1</span></div><pre>${jsonLines(s, ["value", "start_ms", "task_state", "reported_phase"], ["task_state", "reported_phase"])}</pre></div>
+      <div class="snip"><div class="path"><span>decision_graph</span><span>UPDATE ${recs.map(({ u }) => u.source + "→" + u.target).filter((v, k, a) => a.indexOf(v) === k).join(", ")}</span></div>
+        <pre>${recs.map(({ r }) => `<span class="k">${r.id}</span>  ${fmt(r.time_ms)}  ${r.task_state}  ← ${r.observation.evidence_refs[0]}${r.inference.primary_rule ? "  " + r.inference.primary_rule : ""}`).join("\n")}</pre></div>
+      <p class="note">강조한 필드는 구술에서 연결된 값입니다.</p>
+    </div>`;
+}
+$("#picker").innerHTML = presses.map((e, i) => `<button type="button" data-i="${i}" aria-pressed="false">${i + 1}<span>${esc(effect(e))}</span></button>`).join("");
+$("#picker").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b) showExample(+b.dataset.i); });
+
+/* ---------- 3. result strip ---------- */
+(function () {
+  const sc = { S0: "--s0", S1: "--s1", S2: "--s2", S3: "--s3", S4: "--s4" };
+  $("#strip").innerHTML = G.states.map((s) => {
+    const b = s.end_ms ?? s.observed_until_ms;
+    const w = ((b - s.start_ms) / END) * 100;
+    const dark = ["S3", "S4"].includes(s.task_state);
+    return `<div class="seg" style="width:${w}%;background:var(${sc[s.task_state]});color:var(${dark ? "--on-dark" : "--on-light"})" title="${esc(s.value)} · ${fmt(s.start_ms)}–${fmt(b)} · ${s.task_state}">${w > 7 ? esc(s.value) : ""}</div>`;
+  }).join("");
+  $("#marks").innerHTML = presses.map((e, i) => `<button type="button" class="mk" data-i="${i}" style="left:${(e.time_ms / END) * 100}%" title="${fmt(e.time_ms)} 누름 → ${esc(effect(e))}" aria-label="누름 ${i + 1}, ${fmt(e.time_ms)}">${i + 1}</button>`).join("");
+  $("#marks").addEventListener("click", (ev) => { const b = ev.target.closest(".mk"); if (b) { showExample(+b.dataset.i); $("#steps").scrollIntoView({ behavior: "smooth", block: "nearest" }); } });
+  $("#dps").innerHTML = G.decision_graph.nodes.map((n) => {
+    const w = n.observed_window; return `<span style="width:${((w.end_ms - w.start_ms) / END) * 100}%">${n.id}${n.latest_event_id ? "" : " · 기록 없음"}</span>`;
+  }).join("");
+  const KC = { observation: "--k-obs", judgment: "--k-judg", intention: "--k-int", plan: "--k-plan" };
+  const KN = { observation: "관찰", judgment: "판단", intention: "의도", plan: "계획" };
+  $("#speech").innerHTML = [...G.observations.map((o) => ({ ...o, kind: "observation" })), ...G.interpretations].map((x) =>
+    `<i style="left:${(x.start_ms / END) * 100}%;width:${Math.max(0.25, ((x.end_ms - x.start_ms) / END) * 100)}%;background:var(${KC[x.kind]})" title="${fmt(x.start_ms)} ${KN[x.kind]}: ${esc(x.text)}"></i>`).join("");
+  $("#axis").innerHTML = [0, 120000, 240000, 360000, 480000].map((t) => `<span>${fmt(t, 0)}</span>`).join("") + `<span>${fmt(END, 0)}</span>`;
+  const items = [
+    [G.states.length, "states"], [G.events.length, "events (누름 6 · 관찰 2 · 짚기 1)"], [records.length, "UPDATE records"],
+    [G.observations.length, "observations (구술)"], [G.interpretations.length, "interpretations (구술)"], [G.objects.length, "objects"],
+  ];
+  $("#summary").innerHTML = items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  $("#jsonDump").textContent = JSON.stringify(G, null, 2);
+})();
+
+showExample(2);
+
+const _end = G.metadata.recording_end_ms, _m = Math.floor(_end / 60000), _s = Math.round((_end % 60000) / 1000);
+document.getElementById("resDur").textContent = `${_m}분 ${_s}초`;
+document.getElementById("title").textContent = `${G.trial_id} 씬그래프`;
+document.getElementById("eyebrow").textContent = `XRMemory Scene Graph · ${G.trial_id}`;
+document.getElementById("jsonName").textContent = `examples/${EX}/scenegraph.json`;
+document.title = `${G.trial_id} 씬그래프`;
+})();
+</script>
+</body>
+</html>

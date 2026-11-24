@@ -62,3 +62,28 @@ flowchart TD
 | `inference` | 기준 위험도, 사용자 상태 추정, Belief |
 
 12.1초의 HIGH 직접 보고를 Belief에 반영했다. 기준 위험도와 사용자 상태 추정은 근거 부족으로 UNKNOWN이다. DP1~DP4는 절차 정의만 있고 UPDATE 기록은 DP5에만 있다.
+
+## 실제 녹화 예시: Aria 261104_test0
+
+Project Aria 안경으로 녹화한 정상 절차 시행(9분 25초)에서 같은 구조로 추출한 씬그래프다. 영상·손 추적·머리 방향·구술(think-aloud)을 근거로 DP1~DP5 전체에 UPDATE 기록 56건이 쌓인다.
+
+```mermaid
+flowchart LR
+    V["camera-rgb.mp4"] -->|LCD 판독| ST["states"]
+    V -->|손가락 접촉 프레임| EV["events: button_press"]
+    HT["handtracking.csv"] -->|접근 구간| EV
+    VIO["vio_high_frequency.csv"] -->|머리 앙각| LK["events: look_at_machine"]
+    MIC["mic.wav"] -->|받아쓰기·분류| OB["observations"]
+    MIC --> IN["interpretations: 판단·의도·계획"]
+    IN -->|의도 발언 → 버튼| EV
+    ST & EV & LK & OB & IN --> DG["decision_graph UPDATE"]
+```
+
+| 파일 | 내용 |
+|---|---|
+| `examples/aria_261104_test0/scenegraph.json` | 추출된 씬그래프 |
+| `examples/aria_261104_test0/annotation.json` | 수작업 주석 (화면 전환 프레임, 교정·분류한 발언) |
+| `examples/aria_261104_test0/mic_script.md` | 구술 대본 |
+| `tools/aria/` | 생성·받아쓰기 스크립트 |
+| `viewer/index.html` | 추출 과정 시각화 (`python3 -m http.server` 후 `/viewer/`) |
+| `docs/aria-extraction.md` | 추출 방법, 스키마 확장, 가정 |
