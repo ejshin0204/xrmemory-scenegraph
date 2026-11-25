@@ -3,9 +3,9 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# eval 참고 문서 (로컬 전용)
-eval/1차년도_기술보고서.md
-eval/STARTFIRE-SF-2100C-Manual.pdf
-eval/XRMemory_정상시퀀스_신입질문_입력 - 질문 입력.csv
-eval/XRMemory_시나리오.md
-eval/XRMemory_연구개발계획서.pdf
+# eval/: 평가 코드만 공개. 참고 자료·작업 문서·데이터·실행 로그·API 설정·가상환경은 로컬 전용
+eval/*
+!eval/msg_eval/
+!eval/pyproject.toml
+!eval/uv.lock
+!eval/config.example.yaml

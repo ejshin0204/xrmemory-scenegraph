@@ -1,0 +1,12 @@
+[project]
+name = "msg-eval"
+version = "0.1.0"
+description = "Memory scene graph retrieval benchmark (nDCG@5) for XRMemory"
+requires-python = ">=3.10"
+dependencies = [
+  "anthropic>=1.0",
+  "PyYAML>=6.0",
+]
+
+[tool.uv]
+package = false

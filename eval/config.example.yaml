@@ -1,0 +1,29 @@
+# Copy to config.yaml (gitignored) and adjust.
+#   cp eval/config.example.yaml eval/config.yaml
+
+graph: examples/aria_261104_test0/scenegraph.json   # repo-relative
+dataset: eval/data/qa_ingraph.csv                   # in-graph gold set
+runs_dir: eval/runs
+
+evaluation:
+  k: 5                 # nDCG@k
+  parallel_jobs: 4     # questions processed concurrently; lower it on 429s
+
+anthropic:
+  # ANTHROPIC_API_KEY in the environment wins. Otherwise the key is read from this file at
+  # runtime (never copied, never logged).
+  api_key_file: ~/path/to/Anthropic_api_key.txt   # set the real path in config.yaml (gitignored)
+  model: claude-opus-5-5
+  effort: medium               # low | medium | high | xhigh | max (Opus 5.5 default is medium)
+  thinking_display: summarized # summarized keeps a readable reasoning summary in the traces
+  fallbacks: true              # server-side refusal fallback (beta server-side-fallback-2026-07-01)
+  max_tokens: 16000
+  timeout_s: 300
+  max_retries: 4
+
+methods:
+  graph_nav:           # ours: navigator agent (Graph-CoT loop) -> ranker agent
+    max_steps: 12      # navigator LLM turns before it is forced to stop
+    max_candidates: 10 # navigator hands at most this many nodes to the ranker
+  llm_flat: {}         # baseline: whole node table in the prompt, one call
+  bm25: {}             # baseline: lexical BM25 over node text, no LLM
